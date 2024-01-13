@@ -21,6 +21,8 @@ print("VERSION = \$VERSION:")
 """
 module Ising2D
 
+include("CircularArrays.jl")
+using .CircularArrays
 using Plots
 using Plots.PlotMeasures
 using Random
@@ -28,9 +30,10 @@ using Random: default_rng
 using ProgressMeter
 
 export
-    default_rng, 
+    default_rng,
     β_ising2d, rand_ising2d, ones_ising2d,
-    IfElse, MultiFor, ising2d!,
+    IfElse, IfElseCircular, MultiFor, MultiForCircular,
+    ising2d!,
     plot_ising2d, gif_ising2d,
     mcmc_ising2d!, energy_density_ising2d, magnetization_ising2d,
     plot_mcmc_ising2d, histogram_mcmc_ising2d, gif_mcmc_ising2d
@@ -62,6 +65,9 @@ ones_ising2d(m=100, n=m) = ones(Int8, m, n)
 `IfElse()` = Algorithm using ifelse
 """
 struct IfElse end
+
+struct IfElseCircular end
+struct MultiForCircular end
 
 """
 `MultiFor()` = Algorithm using multiple for-loops
@@ -128,6 +134,25 @@ function ising2d!(::IfElse, s=rand_ising2d(), β=β_ising2d, niters=10^3, rng=de
     s
 end
 
+function ising2d!(T::IfElseCircular, s::AbstractMatrix=rand_ising2d(), β=β_ising2d, niters=10^3, rng=default_rng())
+    _ising2d!(T, CircularArray(s), β, niters, rng)
+end
+
+function _ising2d!(::IfElseCircular, s::CircularMatrix=CircularMatrix(rand_ising2d()), β=β_ising2d, niters=10^3, rng=default_rng())
+    m, n = size(s)
+    prob = ((exp(-2*β*k) for k in -4:4)...,)
+    @inbounds for iter in 1:niters, j in 1:n, i in 1:m
+        NN = s[i-1, j]
+        SS = s[i+1, j]
+        WW = s[i, j-1]
+        EE = s[i, j+1]
+        CT = s[i, j]
+        k = CT * (NN + SS + WW + EE)
+        s[i,j] = ifelse(rand(rng) < prob[k+5], -CT, CT)
+    end
+    s
+end
+
 """
     ising2d!(::MultiFor, s=rand_ising2d(), β=β_ising2d, niters=10^3, rng=default_rng())
 
@@ -157,9 +182,9 @@ function ising2d!(::MultiFor, s=rand_ising2d(), β=β_ising2d, niters=10^3, rng=
         let s₁ = s[m,1], k = s₁ * (s[1,1] + s[m-1,1] + s[m,2] + s[m,n])
             s[m,1] = ifelse(rand(rng) < prob[k+5], -s₁, s₁)
         end
-        
+
         for j in 2:n-1
-            let s₁ = s[1,j], k = s₁ * (s[2,j] + s[m,j] + s[1,j+1] + s[1,j-1]) 
+            let s₁ = s[1,j], k = s₁ * (s[2,j] + s[m,j] + s[1,j+1] + s[1,j-1])
                 s[1,j] = ifelse(rand(rng) < prob[k+5], -s₁, s₁)
             end
             for i in 2:m-1
@@ -167,11 +192,11 @@ function ising2d!(::MultiFor, s=rand_ising2d(), β=β_ising2d, niters=10^3, rng=
                     s[i,j] = ifelse(rand(rng) < prob[k+5], -s₁, s₁)
                 end
             end
-            let s₁ = s[m,j], k = s₁ * (s[1,j] + s[m-1,j] + s[m,j+1] + s[m,j-1]) 
+            let s₁ = s[m,j], k = s₁ * (s[1,j] + s[m-1,j] + s[m,j+1] + s[m,j-1])
                 s[m,j] = ifelse(rand(rng) < prob[k+5], -s₁, s₁)
             end
         end
-        
+
         let s₁ = s[1,n], k = s₁ * (s[2,n] + s[m,n] + s[1,1] + s[1,n-1])
             s[1,n] = ifelse(rand(rng) < prob[k+5], -s₁, s₁)
         end
@@ -187,6 +212,25 @@ function ising2d!(::MultiFor, s=rand_ising2d(), β=β_ising2d, niters=10^3, rng=
     s
 end
 
+function ising2d!(T::MultiForCircular, s::AbstractMatrix=rand_ising2d(), β=β_ising2d, niters=10^3, rng=default_rng())
+    _ising2d!(T, CircularArray(s), β, niters, rng)
+end
+
+function _ising2d!(::MultiForCircular, s::CircularMatrix=CircularMatrix(rand_ising2d()), β=β_ising2d, niters=10^3, rng=default_rng())
+    m, n = size(s)
+    prob = ((exp(-2*β*k) for k in -4:4)...,)
+    @inbounds for _ in 1:niters
+        for j in 1:n
+            for i in 1:m
+                s₁ = s[i,j]
+                k = s₁ * (s[i+1,j] + s[i-1,j] + s[i,j+1] + s[i,j-1])
+                s[i,j] = ifelse(rand(rng) < prob[k+5], -s₁, s₁)
+            end
+        end
+    end
+    s
+end
+
 """
     plot_ising2d(s; size=(201.5, 201.5), color=:gist_earth, clim=(-2, 1.1), kwargs...)
 
@@ -195,9 +239,9 @@ plots the state `s` of 2D Ising model.
 function plot_ising2d(s; size=(201.5, 201.5), color=:gist_earth, clim=(-2, 1.1), kwargs...)
     heatmap(s; size=size, color=color, clim=clim,
         colorbar = false, axis = false,
-        leftmargin = -20mm, rightmargin = -20mm, 
+        leftmargin = -20mm, rightmargin = -20mm,
         top_margin = -2mm, bottom_margin = -20mm,
-        titlefontsize = 8 
+        titlefontsize = 8
     )
     plot!(; kwargs...)
 end
@@ -205,7 +249,7 @@ end
 """
     gif_ising2d(; s=rand_ising2d(), k=1.0, β=k*β_ising2d, rng=default_rng(),
         algorithm=default_algorithm(), progress=true,
-        nwarmups=0, nskips=10, niters=100, 
+        nwarmups=0, nskips=10, niters=100,
         gifname="ising2d.gif", fps=10,
         size=(201.5, 217.5), color=:gist_earth, clim=(-2, 1.1), kwargs...
     )
@@ -220,7 +264,7 @@ gif_ising2d(s=rand_ising2d(200))
 """
 function gif_ising2d(; s=rand_ising2d(), k=1.0, β=k*β_ising2d, rng=default_rng(),
         algorithm=default_algorithm(), progress=true,
-        nwarmups=0, nskips=10, niters=100, 
+        nwarmups=0, nskips=10, niters=100,
         gifname="ising2d.gif", fps=10,
         size=(201.5, 217.5), color=:gist_earth, clim=(-2, 1.1), kwargs...
     )
@@ -237,14 +281,14 @@ end
 
 """
     mcmc_ising2d!(; s=rand_ising2d(), k=1.0, β=k*β_ising2d, rng=default_rng(),
-        algorithm=default_algorithm(), progress=true, 
+        algorithm=default_algorithm(), progress=true,
         nwarmups=1000, nskips=100, niters=5000
     )
 
 returns the result of the Markov Chain Monte Carlo simulation with length niters, which is the array of the states of 2D Ising model.
 """
 function mcmc_ising2d!(; s=rand_ising2d(), k=1.0, β=k*β_ising2d, rng=default_rng(),
-        algorithm=default_algorithm(), progress=true, 
+        algorithm=default_algorithm(), progress=true,
         nwarmups=1000, nskips=100, niters=5000
     )
     S = Array{typeof(s), 1}(undef, niters)
@@ -295,7 +339,7 @@ end
 
 """
     plot_mcmc_ising2d(S, E=nothing, M=nothing;
-        k=1.0, β=k*β_ising2d, niters=length(S), t=niters,   
+        k=1.0, β=k*β_ising2d, niters=length(S), t=niters,
         ylim_E=(-1.50, -1.35), ylim_M=(-0.75, 0.75), lw=0.5, alpha=0.8,
         size=(600, 300), color=:gist_earth, clim=(-2, 1.1), kwargs...
     )
@@ -303,7 +347,7 @@ end
 plots the MCMC result S with energy per site and magnetization.
 """
 function plot_mcmc_ising2d(S, E=nothing, M=nothing;
-        k=1.0, β=k*β_ising2d, niters=length(S), t=niters, 
+        k=1.0, β=k*β_ising2d, niters=length(S), t=niters,
         ylim_E=(-1.55, -1.3), ylim_M=(-0.8, 0.8), lw=0.5, alpha=0.8,
         size=(600, 300), color=:gist_earth, clim=(-2, 1.1), kwargs...
     )
@@ -314,7 +358,7 @@ function plot_mcmc_ising2d(S, E=nothing, M=nothing;
         M = magnetization_ising2d.(S)
     end
     title="β=$(round(β/β_ising2d, digits=4))β_c,  t=$t"
-    P1 = heatmap(S[t]; color=color, clim=clim, colorbar=false, axis=false, 
+    P1 = heatmap(S[t]; color=color, clim=clim, colorbar=false, axis=false,
         title=title)
     P2 = plot(@view(E[1:t]); xlim=(1, niters), ylim=ylim_E, lw=lw, alpha=alpha,
         title="energy per site")
@@ -327,14 +371,14 @@ end
 
 """
     histogram_mcmc_ising2d(S, E=nothing, M=nothing;
-        niters=length(S), bin=min(100, max(10, round(Int, 1.2*√niters))), 
+        niters=length(S), bin=min(100, max(10, round(Int, 1.2*√niters))),
         size=(600, 200), kwargs...
     )
 
 plots the histogram of energy per site and magnetization of the MCMC result S.
 """
 function histogram_mcmc_ising2d(S, E=nothing, M=nothing;
-        niters=length(S), bin=min(100, max(10, round(Int, 1.2*√niters))), 
+        niters=length(S), bin=min(100, max(10, round(Int, 1.2*√niters))),
         size=(600, 200), kwargs...
     )
     if isnothing(E)
@@ -375,7 +419,7 @@ function gif_mcmc_ising2d(S=nothing, E=nothing, M=nothing;
         size=(600, 300), color=:gist_earth, clim=(-2, 1.1), kwargs...
     )
     if isnothing(S)
-        S = mcmc_ising2d!(; s=s, k=k, β=β, rng=rng, algorithm=algorithm, 
+        S = mcmc_ising2d!(; s=s, k=k, β=β, rng=rng, algorithm=algorithm,
             progress=progress, nwarmups=nwarmups, nskips=nskips, niters=niters)
     else
         niters = length(S)
@@ -388,7 +432,7 @@ function gif_mcmc_ising2d(S=nothing, E=nothing, M=nothing;
     end
     progress && (prog = Progress(niters, 1, "@animate for:  "))
     anim = @animate for t in 1:niters
-        plot_mcmc_ising2d(S, E, M; k=k, β=β, t=t,   
+        plot_mcmc_ising2d(S, E, M; k=k, β=β, t=t,
             ylim_E=ylim_E, ylim_M=ylim_M, lw=lw, alpha=alpha,
             size=size, color=color, clim=clim, kwargs...
         )

@@ -4,9 +4,12 @@ authors = ["Gen Kuroki <genkuroki@gmail.com>"]
 version = "0.1.2"
 
 [deps]
+FastModulo = "9c1c3460-22a3-4ea5-9766-12b2e9d6952a"
+LoopVectorization = "bdcacae8-1622-11e9-2a5c-532679323890"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 ProgressMeter = "92933f4c-e287-5a05-a399-4b506db050ca"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+Unrolled = "9602ed7d-8fef-5bc8-8597-8f21381861e8"
 
 [compat]
 Plots = "1.10.0"
