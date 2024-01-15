@@ -145,7 +145,11 @@ function Base.insert!(a::CircularVector, i::Integer, item)
 end
 
 @inline @fastmath _resolve_index(r::AbstractUnitRange{<:Integer}, i::Integer) = ifelse(first(r) ≤ i ≤ last(r), i, mod(i, r))
-@inline @fastmath _resolve_index(r::Base.OneTo, i::Integer) = ifelse(1 ≤ i ≤ last(r), i, mod(i, r))
+@inline function _resolve_index(r::Base.OneTo, i::Integer)
+    i == first(r) - 1 && return last(r)
+    i == last(r) + 1 && return first(r)
+    return i
+end 
 
 @inline function Base.getindex(arr::CircularMatrix, i::Int)
     r = eachindex(IndexLinear(), arr.data)
