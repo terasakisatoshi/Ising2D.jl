@@ -221,10 +221,55 @@ function _ising2d!(::MultiForCircular, s::CircularMatrix=CircularMatrix(rand_isi
     prob = ((exp(-2*β*k) for k in -4:4)...,)
     @inbounds for _ in 1:niters
         for j in 1:n
-            for i in 1:m
+            for i in 1:10:m-1
                 s₁ = s[i,j]
                 k = s₁ * (s[i+1,j] + s[i-1,j] + s[i,j+1] + s[i,j-1])
                 s[i,j] = ifelse(rand(rng) < prob[k+5], -s₁, s₁)
+
+                i1 = i + 1
+                s₁ = s[i1,j]
+                k = s₁ * (s[i1+1,j] + s[i1-1,j] + s[i1,j+1] + s[i1,j-1])
+                s[i1,j] = ifelse(rand(rng) < prob[k+5], -s₁, s₁)
+
+                i2 = i + 2
+                s₁ = s[i2,j]
+                k = s₁ * (s[i2+1,j] + s[i2-1,j] + s[i2,j+1] + s[i2,j-1])
+                s[i2,j] = ifelse(rand(rng) < prob[k+5], -s₁, s₁)
+
+                i3 = i + 3
+                s₁ = s[i3,j]
+                k = s₁ * (s[i3+1,j] + s[i3-1,j] + s[i3,j+1] + s[i3,j-1])
+                s[i3,j] = ifelse(rand(rng) < prob[k+5], -s₁, s₁)
+
+                i4 = i + 4
+                s₁ = s[i4,j]
+                k = s₁ * (s[i4+1,j] + s[i4-1,j] + s[i4,j+1] + s[i4,j-1])
+                s[i4,j] = ifelse(rand(rng) < prob[k+5], -s₁, s₁)
+
+                i5 = i + 5
+                s₁ = s[i5,j]
+                k = s₁ * (s[i5+1,j] + s[i5-1,j] + s[i5,j+1] + s[i5,j-1])
+                s[i5,j] = ifelse(rand(rng) < prob[k+5], -s₁, s₁)
+
+                i6 = i + 6
+                s₁ = s[i6,j]
+                k = s₁ * (s[i6+1,j] + s[i6-1,j] + s[i6,j+1] + s[i6,j-1])
+                s[i6,j] = ifelse(rand(rng) < prob[k+5], -s₁, s₁)
+
+                i7 = i + 7
+                s₁ = s[i7,j]
+                k = s₁ * (s[i7+1,j] + s[i7-1,j] + s[i7,j+1] + s[i7,j-1])
+                s[i7,j] = ifelse(rand(rng) < prob[k+5], -s₁, s₁)
+
+                i8 = i + 8
+                s₁ = s[i8,j]
+                k = s₁ * (s[i8+1,j] + s[i8-1,j] + s[i8,j+1] + s[i8,j-1])
+                s[i8,j] = ifelse(rand(rng) < prob[k+5], -s₁, s₁)
+
+                i9 = i + 9
+                s₁ = s[i9,j]
+                k = s₁ * (s[i9+1,j] + s[i9-1,j] + s[i9,j+1] + s[i9,j-1])
+                s[i9,j] = ifelse(rand(rng) < prob[k+5], -s₁, s₁)
             end
         end
     end
